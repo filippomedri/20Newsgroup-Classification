@@ -1,0 +1,2 @@
+newsgroup_path: ./resources/20_newsgroup
+load_path: ./data/output
