@@ -1,2 +1,2 @@
-newsgroup_path: ./resources/20_newsgroup
+newsgroup_path: ./resources/3_newsgroup
 load_path: ./data/output

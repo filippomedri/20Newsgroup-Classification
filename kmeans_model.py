@@ -1,7 +1,6 @@
 from __future__ import print_function
 import pickle
 
-from sklearn.datasets import fetch_20newsgroups
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import HashingVectorizer
@@ -13,7 +12,6 @@ from sklearn import metrics
 from sklearn.cluster import KMeans, MiniBatchKMeans
 
 import logging
-from optparse import OptionParser
 import sys
 from time import time
 

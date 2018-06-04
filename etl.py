@@ -15,7 +15,9 @@ from newsgroup_conf import Config
 class ETL(object):
 
     def __init__(self):
+        ## read configuration
         self.config = Config()
+        # tag to remove from the e-mail text
         self.header_tag = \
             [ r'Path:.*\n',
               r'From:.*\n',
@@ -55,12 +57,15 @@ class ETL(object):
               r'[^@]+@[^@]+\.[^@]+',
               r'^(?!:\/\/)([a-zA-Z0-9-_]+\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\.[a-zA-Z]{2,11}?$'
               ]
-
+        # regular expression to remove the introduction of the quote
         self._QUOTE_RE = re.compile(r'(writes in|writes:|wrote:|says:|said:'
                        r'|^In article|^Quoted from|^\||^>)')
 
-
     def __strip_header_quotes_and_footer(self, document_lines):
+        '''
+        :param document_lines:
+        :return: text of e-mail without header, footer and quotes
+        '''
         output_agg = list()
 
         # First eliminate quotation
@@ -85,16 +90,17 @@ class ETL(object):
         return flattened_ngrams
 
     def __eliminate_stop_words_and_plurals(self, input_list):
-        print(input_list)
-        print()
+        '''
+        :param input_list: list of token words
+        :return: the list of token without english stop words
+        words in plural are converted to singular
+        '''
         p = nltk.PorterStemmer()
-        stop_words.add('like')
         return [p.stem(token) for token in input_list if not token in stop_words]
 
     def extract(self):
         """
-        Extract necessary data / resources from upstream. This method will:
-         - Validate that newsgroup data set is available, and read in
+        Read the newsgroup dataset from the filesystem
         """
         logging.info('Begin extract')
 
@@ -115,17 +121,18 @@ class ETL(object):
         # Newsgroup20: Re-order rows
         observations = self.observations.sample(frac=1)
 
-        # Newsgroup20: Subset number of observations, if it's a test run
-        if self.config.get_property('test_run'):
-            logging.info('Reducing file size for test run')
-            self.observations = observations.sample(100)
-            self.observations = observations.reset_index()
-            logging.info('Test run number of records: {}'.format(len(observations.index)))
-
         logging.info('End extract')
 
-
     def transform(self):
+        '''
+        Perform transformation on the 20 Newsgroup Dataset:
+        Create the following columns of the observations dataframe
+        - filename              : the name of the file
+        - category              : the name of the newsgroup that file belongs to
+        - text                  : the text of the file
+        - tokens                : the tokens which made up the file
+        - modeling text list    : the text used by the modeling algorithms
+        '''
         logging.info('Begin transform')
     
         # Transform newsgroup20 data set
@@ -136,11 +143,9 @@ class ETL(object):
         self.observations['category'] = self.observations['document_path'].apply(lambda x: ntpath.basename(os.path.dirname(x)))
 
         # Newsgroup20: Extract article text (and strip article headers), from document path
-
         self.observations['text'] = self.observations['document_path'].apply(lambda x: self.__strip_header_quotes_and_footer(list(open(x, encoding="latin-1"))))
 
         # Remove non-ascii characters
-        #observations['text'] = observations['text'].apply(lambda x: x.decode('ascii', errors='ignore'))
         self.observations['text'] = self.observations['text'].apply(lambda x: re.sub(r'[^\x00-\x7f]',r'',x))
     
         # Newsgroup20: Convert text to normalized tokens. Unknown tokens will map to 'UNK'.
@@ -149,18 +154,14 @@ class ETL(object):
         # Newsgroup20: Eliminate Stop Word
         self.observations['tokens'] = self.observations['tokens'].apply(lambda x:self.__eliminate_stop_words_and_plurals(x))
 
-        # Newsgroup20: Create bigrams
-        self.observations['bigrams'] = self.observations['tokens'].apply(lambda x: self.__find_ngrams(x, n=2))
-
         # Newsgroup20: Create modeling text
-        #self.observations['modeling_text_list'] = self.observations['tokens'] + self.observations['bigrams']
-        self.observations['modeling_text_list'] = self.observations['tokens']
-        self.observations['modeling_text'] = self.observations['modeling_text_list'].apply(lambda x: ' '.join(x))
+        self.observations['modeling_text'] = self.observations['tokens'].apply(lambda x: ' '.join(x))
 
-        print(self.observations.head())
-
-        '''
-        lib.archive_dataset_schemas('transform', locals(), globals())
         logging.info('End transform')
-        return observations
+
+    def load(self):
         '''
+        load clustering data and modeling list data to 2 different csv file
+        '''
+        self.observations[['component_1', 'component_2', 'component_3', 'category', 'cluster']].to_csv('clustering.csv')
+        self.observations[['modeling_text_list']].to_csv('text.csv')
