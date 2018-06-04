@@ -8,11 +8,8 @@ def main():
     etl.extract()
     etl.transform()
     kmeans_model = KMeansModel(etl.observations,'modeling_text',
-                               use_hashing=False,
-                               use_idf=True,
                                n_clusters=3,
-                               n_features=1000,
-                               verbose=True)
+                               n_features=1000)
     kmeans_model.vectorize()
     kmeans_model.apply_lsa(n_components=50)
     kmeans_model.run()
