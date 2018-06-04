@@ -1,7 +1,5 @@
 from etl import ETL
 from kmeans_model import KMeansModel
-import numpy as np
-import pandas as pd
 
 def main():
     etl = ETL()
